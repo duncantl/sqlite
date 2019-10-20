@@ -16038,6 +16038,7 @@ static int do_meta_command(char *zLine, ShellState *p){
     char *(SQLITE_CDECL *xRead)(ImportCtx*); /* Func to read one value */
     int (SQLITE_CDECL *xCloser)(FILE*);      /* Func to close file */
     sqlite3_int64 skip = 0, nRow = -1;
+    long at = -1;
     
     if( nArg < 3 || nArg > 5 ){
       raw_printf(stderr, "Usage: .import FILE TABLE ?SKIP? ?NROW?\n");
@@ -16045,12 +16046,26 @@ static int do_meta_command(char *zLine, ShellState *p){
     }
     zFile = azArg[1];
     zTable = azArg[2];
-    if( nArg > 3 )
-      skip = integerValue(azArg[3]);
 
+#define GET_INTEGER_OR_ERROR(str, var, varName)	\
+    {						\
+	int status;				\
+	status = sscanf(str, "%ld", &at); \
+	if(status == EOF || status == 0) { \
+	    raw_printf(stderr, \
+		       "Error: invalid number (%s) for %s in import\n", varName, str); \
+	    return 1;	    \
+	} else \
+	    var = at;				\
+    }
+    
+    if( nArg > 3 ) 
+	GET_INTEGER_OR_ERROR(azArg[3], skip, "SKIP")
+	    
+    
     if( nArg > 4 )
-      nRow = integerValue(azArg[4]);      
-
+	GET_INTEGER_OR_ERROR(azArg[4], nRow, "NROW")
+	    
     
     seenInterrupt = 0;
     memset(&sCtx, 0, sizeof(sCtx));
