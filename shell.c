@@ -16049,7 +16049,7 @@ static int do_meta_command(char *zLine, ShellState *p){
       skip = integerValue(azArg[3]);
 
     if( nArg > 4 )
-      nRow = integerValue(azArg[3]);      
+      nRow = integerValue(azArg[4]);      
 
     
     seenInterrupt = 0;
