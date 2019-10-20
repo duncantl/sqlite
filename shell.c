@@ -16037,13 +16037,21 @@ static int do_meta_command(char *zLine, ShellState *p){
     ImportCtx sCtx;             /* Reader context */
     char *(SQLITE_CDECL *xRead)(ImportCtx*); /* Func to read one value */
     int (SQLITE_CDECL *xCloser)(FILE*);      /* Func to close file */
-
-    if( nArg!=3 ){
-      raw_printf(stderr, "Usage: .import FILE TABLE\n");
+    sqlite3_int64 skip = 0, nRow = -1;
+    
+    if( nArg < 3 || nArg > 5 ){
+      raw_printf(stderr, "Usage: .import FILE TABLE ?SKIP? ?NROW?\n");
       goto meta_command_exit;
     }
     zFile = azArg[1];
     zTable = azArg[2];
+    if( nArg > 3 )
+      skip = integerValue(azArg[3]);
+
+    if( nArg > 4 )
+      nRow = integerValue(azArg[3]);      
+
+    
     seenInterrupt = 0;
     memset(&sCtx, 0, sizeof(sCtx));
     open_db(p, 0);
@@ -16100,6 +16108,13 @@ static int do_meta_command(char *zLine, ShellState *p){
       utf8_printf(stderr, "Error: cannot open \"%s\"\n", zFile);
       return 1;
     }
+
+    if( skip > 0 ){
+      char header[100000];
+      for(int s = 0; s < skip; s++)
+         fgets(header, sizeof(header), sCtx.in);
+    }
+    
     sCtx.cColSep = p->colSeparator[0];
     sCtx.cRowSep = p->rowSeparator[0];
     zSql = sqlite3_mprintf("SELECT * FROM %s", zTable);
@@ -16172,8 +16187,11 @@ static int do_meta_command(char *zLine, ShellState *p){
     needCommit = sqlite3_get_autocommit(p->db);
     if( needCommit ) sqlite3_exec(p->db, "BEGIN", 0, 0, 0);
     do{
-      int startLine = sCtx.nLine;
-      for(i=0; i<nCol; i++){
+	int startLine = sCtx.nLine;
+	if( nRow > 0 && startLine > nRow )
+	  break;
+	
+	for(i=0; i<nCol; i++){
         char *z = xRead(&sCtx);
         /*
         ** Did we reach end-of-file before finding any columns?
